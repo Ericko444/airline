@@ -10,8 +10,14 @@
                 <h3>Votre voyage</h3>
             </div>
             <div class="card-body">
-                <h4>{{$detail["vol"]->lieu_depart->nom}} &agrave; {{$detail["vol"]->lieu_arrivee->nom}}</h4>
-                <p>Montant total : {{$detail["montant"]}} Ar</p>
+                <h3>Aller :</h3>
+                <h4>{{$detail["vol_aller"]->lieu_depart->nom}} &agrave; {{$detail["vol_aller"]->lieu_arrivee->nom}}</h4>
+                <p>Montant total : {{$detail["montant_aller"]}} Ar</p>
+                @if($detail["option"] == "ar")
+                <h3>Retour :</h3>
+                <h4>{{$detail["vol_retour"]->lieu_depart->nom}} &agrave; {{$detail["vol_retour"]->lieu_arrivee->nom}}</h4>
+                <p>Montant total : {{$detail["montant_retour"]}} Ar</p>
+                @endif
             </div>
         </div>
         <div class="card">

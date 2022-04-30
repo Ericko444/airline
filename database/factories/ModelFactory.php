@@ -73,3 +73,17 @@ $factory->define(App\Models\CategorieAge::class, static function (Faker\Generato
         
     ];
 });
+/** @var  \Illuminate\Database\Eloquent\Factory $factory */
+$factory->define(App\Models\Reservation::class, static function (Faker\Generator $faker) {
+    return [
+        'categorie_id' => $faker->sentence,
+        'created_at' => $faker->dateTime,
+        'montant' => $faker->randomNumber(5),
+        'places' => $faker->randomNumber(5),
+        'updated_at' => $faker->dateTime,
+        'vol_aller_id' => $faker->sentence,
+        'vol_retour_id' => $faker->sentence,
+        
+        
+    ];
+});

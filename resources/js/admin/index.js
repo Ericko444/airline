@@ -6,3 +6,4 @@ import './lieu';
 import './avion';
 import './category';
 import './categorie-age';
+import './reservation';

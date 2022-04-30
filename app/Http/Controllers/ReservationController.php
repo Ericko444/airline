@@ -43,12 +43,14 @@ class ReservationController extends Controller
 
     public function reserverStepOnePost(Request $request)
     {
+
         $validateData = $request->validate(
             [
                 'lieu_depart' => 'required',
                 'lieu_arrivee' => 'required',
-                'date_depart' => 'required',
+                'date_depart_aller' => 'required',
                 'categorie' => 'required',
+                'option' => 'required',
             ]
         );
         $classe = request('categorie');
@@ -66,10 +68,11 @@ class ReservationController extends Controller
         $validateData["passagers"] = $passagers;
         $validateData["nombre"] = $nombre;
         $request->session()->put('requete', $validateData);
-        $date = new DateTime(request('date_depart'));
+        $date = new DateTime(request('date_depart_aller'));
         $dateFrom = $date->sub(new DateInterval('P3D'))->format('Y-m-d');
         $dateTo = $date->add(new DateInterval('P6D'))->format('Y-m-d');
-        $results = Vol::whereRaw("(date_depart >= ? AND date_depart <= ?)", [
+        $results = [];
+        $results['aller'] = Vol::whereRaw("(date_depart >= ? AND date_depart <= ?)", [
             $dateFrom . " 00:00:00",
             $dateTo . " 23:59:59"
         ])
@@ -79,14 +82,36 @@ class ReservationController extends Controller
 
         $valiny = [];
 
-        foreach ($results as $vol) {
+        foreach ($results['aller'] as $vol) {
             if ($this->verifPlaces($vol, $nombre, $classe->id)) {
-                $valiny[] = $vol;
+                $valiny['aller'][] = $vol;
             }
         }
 
+        if (
+            request('date_depart_retour') &&
+            request('date_depart_retour') != ""
+        ) {
+            $date = new DateTime(request('date_depart_retour'));
+            $dateFrom = $date->sub(new DateInterval('P3D'))->format('Y-m-d');
+            $dateTo = $date->add(new DateInterval('P6D'))->format('Y-m-d');
+            $results['retour'] = Vol::whereRaw("(date_depart >= ? AND date_depart <= ?)", [
+                $dateFrom . " 00:00:00",
+                $dateTo . " 23:59:59"
+            ])
+                ->where('lieu_depart_id', request('lieu_arrivee'))
+                ->where('lieu_arrivee_id', request('lieu_depart'))
+                ->get();
 
-        return view('reservations.reserver-step-one-post', ['results' => $valiny, 'passagers' => $passagers, 'categorie' => $classe]);
+
+            foreach ($results['retour'] as $vol) {
+                if ($this->verifPlaces($vol, $nombre, $classe->id)) {
+                    $valiny['retour'][] = $vol;
+                }
+            }
+        }
+
+        return view('reservations.reserver-step-one-post', ['results' => $valiny, 'passagers' => $passagers, 'categorie' => $classe, 'option' => $validateData['option']]);
     }
 
 
@@ -94,6 +119,7 @@ class ReservationController extends Controller
     public function getPrix(Request $request)
     {
         $vol_id = $request->input('vol');
+        $option = $request->input('option');
         $vol = Vol::findOrFail($vol_id);
         $requete = $request->session()->get('requete');
         $passagers = $requete['passagers'];
@@ -106,8 +132,8 @@ class ReservationController extends Controller
                 }
             }
         }
-        $requete['montant'] = $montant;
-        $requete['vol'] = $vol;
+        $requete['montant_' . $option] = $montant;
+        $requete['vol_' . $option] = $vol;
         $request->session()->put('requete', $requete);
         $date = date_create($vol->date_depart);
         $date = date_format($date, 'l d/m/y H:i:s');
@@ -144,9 +170,16 @@ class ReservationController extends Controller
     public function reserverStepThree(Request $request)
     {
         $requete = $request->session()->get('requete');
-        $reservation_inserted = Reservation::create([
-            'vol_aller_id' => $requete['vol']->id,
-            'montant' => $requete['montant'],
+        $montant = $requete['option'] == "ar" ? $requete['montant_aller'] + $requete['montant_retour'] : $requete['montant_aller'];
+        $reservation_inserted = $requete['option'] == "ar" ? Reservation::create([
+            'vol_aller_id' => $requete['vol_aller']->id,
+            'vol_retour_id' => $requete['vol_retour']->id,
+            'montant' => $montant,
+            'places' => $requete['nombre'],
+            'categorie_id' => $requete['categorie'],
+        ]) : Reservation::create([
+            'vol_aller_id' => $requete['vol_aller']->id,
+            'montant' => $montant,
             'places' => $requete['nombre'],
             'categorie_id' => $requete['categorie'],
         ]);
